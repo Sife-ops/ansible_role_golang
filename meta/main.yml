@@ -1,2 +1,10 @@
 ---
-ok: 'yes'
+galaxy_info:
+  author: Wyatt Goettsch
+  description: Installs Golang.
+  namespace: wgoettsch
+  role_name: ansible_role_golang
+  platforms:
+  - name: Debian
+    versions:
+    - bookworm
