@@ -1,0 +1,36 @@
+---
+- ansible.builtin.set_fact:
+    version: '{{ version | default(''1.22.0'') }}'
+- ansible.builtin.set_fact:
+    artifact_name: go{{ version }}.linux-amd64.tar.gz
+- ansible.builtin.set_fact:
+    artifact_url: https://go.dev/dl/{{ artifact_name }}
+- register: artifact
+  ansible.builtin.stat:
+    path: /root/{{ artifact_name }}
+- block:
+  - name: download golang
+    ansible.builtin.get_url:
+      dest: /root/
+      url: https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+  - name: remove debian golang package
+    ansible.builtin.apt:
+      name:
+      - golang
+      - golang-go
+      state: absent
+  - name: install make
+    ansible.builtin.apt:
+      name:
+      - make
+      state: present
+  - name: install golang
+    ansible.builtin.shell:
+      chdir: /root
+      cmd: rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+  - name: add golang to path
+    ansible.builtin.blockinfile:
+      block: PATH=$PATH:/usr/local/go/bin
+      marker: '# {mark} golang bin {{ inventory_hostname }}'
+      path: /etc/profile
+  when: not artifact.stat.exists

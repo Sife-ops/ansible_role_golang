@@ -1,0 +1,81 @@
+module tasks
+
+import "@ansipkl/AnsibleBuiltin.pkl" as Ab
+import "@ansipkl/Playbook.pkl" as P
+
+main = P.NewRole(new Listing {
+    new Ab.SetFact {
+        options_mixin {
+            version = "{{ version | default('1.22.0') }}"
+        }
+    }.Task()
+
+    new Ab.SetFact {
+        options_mixin {
+            artifact_name = "go{{ version }}.linux-amd64.tar.gz"
+        }
+    }.Task()
+
+    new Ab.SetFact {
+        options_mixin {
+            artifact_url = "https://go.dev/dl/{{ artifact_name }}"
+        }
+    }.Task()
+
+    new Ab.Stat {
+        options {
+            path = "/root/{{ artifact_name }}"
+        }
+        register = "artifact"
+    }.Task()
+
+    new P.Block {
+        `when` = "not artifact.stat.exists"
+        block {
+            new Ab.GetUrl {
+                name = "download golang"
+                options {
+                    url = "https://go.dev/dl/go1.22.0.linux-amd64.tar.gz"
+                    dest = "/root/"
+                }
+            }.Task()
+
+            new Ab.Apt {
+                name = "remove debian golang package"
+                options {
+                    state = "absent"
+                    name {
+                      "golang"
+                      "golang-go"
+                    }
+                }
+            }.Task()
+
+            new Ab.Apt {
+                name = "install make"
+                options {
+                    name { "make" }
+                    state = "present"
+                }
+            }.Task()
+
+            new Ab.Shell {
+                name = "install golang"
+                options {
+                    chdir = "/root"
+                    cmd = "rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz"
+                }
+            }.Task()
+
+            new Ab.Blockinfile {
+                name = "add golang to path"
+                options {
+                    path = "/etc/profile"
+                    marker = "# {mark} golang bin {{ inventory_hostname }}"
+                    block = "PATH=$PATH:/usr/local/go/bin"
+                }
+            }.Task()
+        }
+    }
+})
+
